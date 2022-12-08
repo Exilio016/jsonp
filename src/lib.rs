@@ -79,9 +79,9 @@ mod tests {
     #[test]
     fn should_parse_string() {
         unwrap_json_element_result!(
-            Parser::parse("\"Test\\tString\\nSecond\rLine\\n\\\\\""),
+            Parser::parse("\"Test\\tString\\nSecond\rLine\\n\\\\Unicode test: \\u306e\""),
             JsonElement::Str(s),
-            { assert_eq!("Test\tString\nSecond\rLine\n\\", s) }
+            { assert_eq!("Test\tString\nSecond\rLine\n\\Unicode test: つ", s) }
         );
     }
 

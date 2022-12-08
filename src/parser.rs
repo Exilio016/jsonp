@@ -67,6 +67,19 @@ macro_rules! add_c_to_str_and_peek_character {
     };
 }
 
+macro_rules! parse_hex_digit {
+    ($self: ident, $c: ident, $hex: ident, $index: expr) => {
+        let token = $self.tokenizer.next_token();
+        match Parser::token_to_char(token) {
+            Ok(character) => $c = character,
+            Err(e) => return Err(e),
+        }
+        if !is_hex_digit($c) {
+            return Err(ParseError::new("Expected a hex digit after a \\u"));
+        }
+        $hex = $hex | (hex_char_to_u32($c) << ($index * 4))
+    };
+}
 pub struct Parser {
     tokenizer: Tokenizer,
 }
@@ -85,6 +98,20 @@ impl ParseError {
 
 type BoxResult<T> = Result<T, ParseError>;
 type JsonObject = HashMap<String, JsonElement>;
+
+fn is_hex_digit(c: char) -> bool {
+    return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+}
+
+fn hex_char_to_u32(c: char) -> u32 {
+    if c >= '0' && c <= '9' {
+        return (c as u32 - '0' as u32) as u32;
+    }
+    if c >= 'a' && c <= 'f' {
+        return (c as u32 - 'a' as u32) as u32;
+    }
+    return (c as u32 - 'A' as u32) as u32;
+}
 
 impl Parser {
     fn consume_whitespace(&mut self) {
@@ -148,7 +175,20 @@ impl Parser {
                         'r' => string.push('\r'),
                         't' => string.push('\t'),
                         'u' => {
-                            //FIXME parse unicode character
+                            let mut hex: u32 = 0;
+                            parse_hex_digit!(self, c, hex, 3);
+                            parse_hex_digit!(self, c, hex, 2);
+                            parse_hex_digit!(self, c, hex, 1);
+                            parse_hex_digit!(self, c, hex, 0);
+                            match char::from_u32(hex) {
+                                Some(uc) => string.push(uc),
+                                None => {
+                                    return Err(ParseError::new(&format!(
+                                        "Invalid unicode character {:x}",
+                                        hex
+                                    )))
+                                }
+                            }
                         }
                         _ => {
                             return Err(ParseError::new(&format!("Unknown escaped character {c}")))
