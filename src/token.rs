@@ -28,9 +28,9 @@ pub enum Token {
     Comma,
 }
 
-pub struct Tokenizer {
+pub struct Tokenizer<'a> {
     cursor: usize,
-    iterator: Peekable<Chars<'static>>,
+    iterator: Peekable<Chars<'a>>,
 }
 
 fn match_token(c: char) -> Token {
@@ -46,8 +46,8 @@ fn match_token(c: char) -> Token {
     };
 }
 
-impl Tokenizer {
-    pub fn new(json: &'static str) -> Tokenizer {
+impl<'a> Tokenizer<'a> {
+    pub fn new(json: &str) -> Tokenizer {
         Tokenizer {
             cursor: 0,
             iterator: json.chars().peekable(),

@@ -422,7 +422,7 @@ impl Parser {
         };
     }
 
-    pub fn parse(json: &'static str) -> BoxResult<JsonElement> {
+    pub fn parse (json: &str) -> BoxResult<JsonElement> {
         let mut parser = Parser {
             tokenizer: Tokenizer::new(json),
         };
