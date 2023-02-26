@@ -70,10 +70,7 @@ macro_rules! add_c_to_str_and_peek_character {
 macro_rules! parse_hex_digit {
     ($self: ident, $c: ident, $hex: ident, $index: expr) => {
         let token = $self.tokenizer.next_token();
-        match Parser::token_to_char(token) {
-            Ok(character) => $c = character,
-            Err(e) => return Err(e),
-        }
+        $c = Parser::token_to_char(token)?;
         if !is_hex_digit($c) {
             return Err(ParseError::new("Expected a hex digit after a \\u"));
         }
@@ -89,7 +86,7 @@ pub struct ParseError {
 }
 
 impl ParseError {
-    fn new(msg: &str) -> ParseError {
+    pub fn new(msg: &str) -> ParseError {
         return ParseError {
             details: msg.to_string(),
         };
@@ -153,19 +150,12 @@ impl Parser {
 
         loop {
             token = self.tokenizer.next_token();
-            match Parser::token_to_char(token) {
-                Ok(character) => c = character,
-                Err(e) => return Err(e),
-            }
+            c = Parser::token_to_char(token)?;
             match c {
                 '"' => break,
                 '\\' => {
                     token = self.tokenizer.next_token();
-                    match Parser::token_to_char(token) {
-                        Ok(character) => c = character,
-                        Err(e) => return Err(e),
-                    }
-
+                    c = Parser::token_to_char(token)?;
                     match c {
                         '"' => string.push('\"'),
                         '\\' => string.push('\\'),
@@ -214,25 +204,18 @@ impl Parser {
             loop {
                 self.consume_whitespace();
                 let name_or_error = self.parse_string();
-                match name_or_error {
-                    Ok(name) => {
-                        self.consume_whitespace();
-                        c = self.tokenizer.next_token();
-                        if !matches!(c, Token::Colon) {
-                            return Err(ParseError::new("Expected a colon"));
-                        }
-                        self.consume_whitespace();
-                        let value_or_error = self.parse_value();
-                        match value_or_error {
-                            Ok(value) => {
-                                map.insert(name, value);
-                            }
-                            Err(e) => return Err(e),
-                        }
-                        self.consume_whitespace();
-                    }
-                    Err(e) => return Err(e),
+                let name = name_or_error?;
+                
+                self.consume_whitespace();
+                c = self.tokenizer.next_token();
+                if !matches!(c, Token::Colon) {
+                    return Err(ParseError::new("Expected a colon"));
                 }
+                
+                self.consume_whitespace();
+                let value = self.parse_value();
+                map.insert(name, value?);
+                self.consume_whitespace();
                 c = self.tokenizer.peek_token();
                 if !matches!(c, Token::Comma) {
                     break;
@@ -259,13 +242,8 @@ impl Parser {
         } else {
             loop {
                 self.consume_whitespace();
-                let value_or_error = self.parse_value();
-                match value_or_error {
-                    Ok(value) => {
-                        array.push(value);
-                    }
-                    Err(e) => return Err(e),
-                }
+                let value = self.parse_value();
+                array.push(value?);
                 self.consume_whitespace();
                 c = self.tokenizer.peek_token();
                 if !matches!(c, Token::Comma) {
@@ -373,46 +351,28 @@ impl Parser {
         match token {
             Token::OpenBracket => {
                 let obj = self.parse_object();
-                return match obj {
-                    Ok(o) => Ok(JsonElement::Object(o)),
-                    Err(e) => Err(e),
-                };
+                return Ok(JsonElement::Object(obj?));
             }
             Token::OpenSquareBracket => {
                 let array = self.parse_array();
-                return match array {
-                    Ok(o) => Ok(JsonElement::Array(o)),
-                    Err(e) => Err(e),
-                };
+                return Ok(JsonElement::Array(array?));
             }
             Token::Quotion => {
                 let string = self.parse_string();
-                return match string {
-                    Ok(s) => Ok(JsonElement::Str(s)),
-                    Err(e) => Err(e),
-                };
+                return Ok(JsonElement::Str(string?));
             }
             Token::Character(c) => match c {
                 '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '-' => {
                     let num = self.parse_number();
-                    match num {
-                        Ok(value) => return Ok(JsonElement::Number(value)),
-                        Err(e) => return Err(e),
-                    }
+                    return Ok(JsonElement::Number(num?));
                 }
                 't' | 'f' => {
                     let boolean = self.parse_boolean();
-                    match boolean {
-                        Ok(value) => return Ok(JsonElement::Boolean(value)),
-                        Err(e) => return Err(e),
-                    }
+                    return Ok(JsonElement::Boolean(boolean?));
                 }
                 'n' => {
-                    let value = self.parse_null();
-                    match value {
-                        Err(e) => return Err(e),
-                        Ok(_) => return Ok(JsonElement::Null),
-                    }
+                    self.parse_null()?;
+                    return Ok(JsonElement::Null);
                 }
                 _ => return Err(ParseError::new("Expected true, false or null")),
             },
