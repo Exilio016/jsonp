@@ -77,8 +77,8 @@ macro_rules! parse_hex_digit {
         $hex = $hex | (hex_char_to_u32($c) << ($index * 4))
     };
 }
-pub struct Parser {
-    tokenizer: Tokenizer,
+pub struct Parser<'a> {
+    tokenizer: Tokenizer<'a>,
 }
 
 pub struct ParseError {
@@ -110,7 +110,7 @@ fn hex_char_to_u32(c: char) -> u32 {
     return (c as u32 - 'A' as u32) as u32;
 }
 
-impl Parser {
+impl<'a> Parser<'a> {
     fn consume_whitespace(&mut self) {
         loop {
             let token = self.tokenizer.peek_token();
